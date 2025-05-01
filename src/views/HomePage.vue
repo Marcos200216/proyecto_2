@@ -118,7 +118,7 @@
           </ion-card>
         </div>
 
-       <!-- TAREAS -->
+     <!-- TAREAS -->
 <div v-if="activeTab === 'tasks' && selectedProject" class="ion-margin-top">
   <ion-card>
     <ion-card-header>
@@ -131,13 +131,16 @@
           <ion-label>
             <h2 @click="editField('name', task)">{{ task.name }}</h2>
             <p @click="editField('description', task)">{{ task.description }}</p>
-            <div>
-  <strong>Asignados a:</strong>
-  <ul>
-    <li v-for="user in task.users" :key="user.id">{{ user.name }}</li>
-  </ul>
-</div>
 
+            <!-- Mostrar usuarios asignados -->
+            <div>
+              <strong>Asignados a:</strong>
+              <ul>
+                <li v-for="user in task.users" :key="user.id">{{ user.name }}</li>
+              </ul>
+            </div>
+
+            <!-- Estado de la tarea -->
             <strong>Estado: </strong>
             <template v-if="editingTaskStatusId === task.id">
               <ion-select v-model="task.status" @ionChange="updateTaskStatus(task)">
@@ -147,11 +150,25 @@
               </ion-select>
             </template>
             <span v-else @click="editField('status', task)">{{ task.status }}</span>
+
+            <!-- Asignar múltiples usuarios -->
             <div class="ion-padding-top">
               <ion-item>
                 <ion-label>Asignar a</ion-label>
-                <ion-select v-model="task.assigned_user_id" @ionChange="assignUserToTask(task)">
-                  <ion-select-option v-for="user in users" :key="user.id" :value="user.id">{{ user.name }}</ion-select-option>
+                <ion-select
+                  v-model="task.assigned_user_ids"
+                  @ionChange="assignUsersToTask(task)"
+                  multiple
+                  cancel-text="Cancelar"
+                  ok-text="Aceptar"
+                >
+                  <ion-select-option
+                    v-for="user in users"
+                    :key="user.id"
+                    :value="user.id"
+                  >
+                    {{ user.name }}
+                  </ion-select-option>
                 </ion-select>
               </ion-item>
             </div>
@@ -160,6 +177,7 @@
         </ion-item>
       </ion-list>
 
+      <!-- Agregar nueva tarea -->
       <ion-title size="small">Agregar Nueva Tarea</ion-title>
       <ion-item>
         <ion-input v-model="newTask" placeholder="Nombre de la Tarea" label="Nombre" label-placement="floating"></ion-input>
@@ -174,20 +192,12 @@
           <ion-select-option value="Completada">Completada</ion-select-option>
         </ion-select>
       </ion-item>
-      <ion-item>
-  <ion-label>Asignar a</ion-label>
-  <ion-select v-model="task.assigned_user_ids" multiple @ionChange="assignUsersToTask(task)">
-    <ion-select-option v-for="user in users" :key="user.id" :value="user.id">
-      {{ user.name }}
-    </ion-select-option>
-  </ion-select>
-</ion-item>
-
 
       <ion-button expand="full" @click="createTask">Agregar Tarea</ion-button>
     </ion-card-content>
   </ion-card>
 </div>
+
 
       </div>
     </ion-content>
@@ -274,6 +284,10 @@ showRegister: false,
         user_ids: task.assigned_user_ids
       })
     });
+
+    // Actualiza visualmente los usuarios asignados
+    task.users = this.users.filter(user => task.assigned_user_ids.includes(user.id));
+
   } catch (error) {
     console.error('Error al asignar usuarios:', error);
   }
@@ -379,16 +393,25 @@ async saveProjectChanges() {
   }
 },
 
-    async fetchTasks(projectId) {
-      try {
-        const res = await axios.get(`https://proyecto1-production-a06f.up.railway.app/api/projects/${projectId}/tasks`, {
-          headers: { Authorization: `Bearer ${this.token}` },
-        });
-        this.tasks = res.data;
-      } catch (err) {
-        console.error(err);
-      }
-    },
+async fetchTasks(projectId) {
+  try {
+    const res = await axios.get(`https://proyecto1-production-a06f.up.railway.app/api/projects/${projectId}/tasks`, {
+      headers: { Authorization: `Bearer ${this.token}` },
+    });
+
+    const data = res.data;
+
+    this.tasks = data.map(task => ({
+      ...task,
+      assigned_user_ids: task.users.map(user => user.id)
+    }));
+
+  } catch (err) {
+    console.error(err);
+  }
+}
+,
+
     async createTask() {
       if (!this.newTask || !this.selectedProject) return;
       try {
